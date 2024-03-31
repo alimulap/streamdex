@@ -1,16 +1,22 @@
-use std::process::Command;
+use std::{fs, process::Command};
 
-use serde_json::Value;
+use toml::Value;
 use url::Url;
 
+use crate::context::Context;
+
 pub trait FromAlias: Sized {
-    fn from_alias(maybe_alias: &str) -> Option<Self>;
+    fn from_alias(ctx: &Context, maybe_alias: &str) -> Option<Self>;
 }
 
 impl FromAlias for Url {
-    fn from_alias(maybe_alias: &str) -> Option<Self> {
+    fn from_alias(ctx: &Context, maybe_alias: &str) -> Option<Self> {
         println!("Checking for alias: {}", maybe_alias);
-        let aliases: Value = serde_json::from_str(include_str!("aliases.json")).unwrap();
+        let config = ctx.get("config").unwrap().as_config().unwrap();
+        let aliases_path = config.aliases_path.as_ref().unwrap();
+        let aliases_str = fs::read_to_string(aliases_path).unwrap();
+        let aliases = toml::from_str::<Value>(&aliases_str).unwrap();
+        //let aliases: Value = serde_json::from_str(include_str!("aliases.json")).unwrap();
         match aliases.get(maybe_alias.to_ascii_lowercase()) {
             Some(url) => {
                 println!("Found url for alias {}: {}", maybe_alias, url.as_str().unwrap());
@@ -57,6 +63,24 @@ pub fn get_format(url: &Url, res: Resolution, ctype: ContentType) -> String {
             _ => res.unwrap_custom(),
         },
         None => panic!("Invalid url: {}", url),
+    }
+}
+
+pub fn get_list_formats(url: &Url) {
+    let output = Command::new("yt-dlp")
+        .arg(url.as_str())
+        .arg("--print")
+        .arg("formats_table")
+        .arg("--cookies-from-browser")
+        .arg("chromium")
+        .output()
+        .unwrap();
+    if output.status.success() {
+        let formats_table = String::from_utf8(output.stdout).unwrap();
+        println!("{}", formats_table);
+    } else {
+        eprintln!("Failed to get formats table");
+        eprintln!("{}", String::from_utf8(output.stderr).unwrap());
     }
 }
 
@@ -187,3 +211,15 @@ impl From<Option<&String>> for Tool {
     }
 }
 
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    #[test]
+    fn test_aliases() {
+        let aliases_str = fs::read_to_string("/home/alimulap/void/aliases.toml").unwrap();
+        let aliases = toml::from_str::<toml::Value>(&aliases_str).unwrap();
+        assert!(aliases.get("sora").is_some());
+    }
+}

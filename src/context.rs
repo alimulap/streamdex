@@ -1,10 +1,13 @@
 use std::{ops::{Deref, DerefMut}, collections::HashMap};
 
+use crate::config::Config;
+
 pub enum ContextValue<'b> {
     String(&'b String),
     OptionString(Option<&'b String>),
     U32(&'b u32),
     Boolean(&'b bool),
+    Config(Config),
 }
 
 impl<'a>  ContextValue<'a> {
@@ -32,6 +35,13 @@ impl<'a>  ContextValue<'a> {
     pub fn as_option_string(&self) -> Option<Option<&String>> {
         match self {
             Self::OptionString(s) => Some(*s),
+            _ => None,
+        }
+    }
+
+    pub fn as_config(&self) -> Option<&Config> {
+        match self {
+            Self::Config(c) => Some(c),
             _ => None,
         }
     }

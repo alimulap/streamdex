@@ -1,6 +1,10 @@
+use std::fs;
+
 use clap::{Arg, ArgAction, Command};
+use config::Config;
 use context::{Context, ContextValue};
 
+mod config;
 mod context;
 mod handler;
 mod room;
@@ -109,11 +113,25 @@ fn main() {
                     .help("delay in seconds")
             ])
         )
+        .subcommand(
+            Command::new("print-formats")
+            .about("Print available formats for a live stream or a video")
+            .args(&[
+                Arg::new("id")
+                    .index(1)
+                    .required(true)
+                    .help("room id")
+            ])
+        )
         .get_matches();
 
+    let mut context = Context::new();
+    let config_str =
+        fs::read_to_string("/home/alimulap/.config/streamdex/config.toml").unwrap();
+    let config = toml::from_str::<Config>(&config_str).unwrap();
+    context.insert("config", ContextValue::Config(config));
     match matches.subcommand() {
         Some(("live", sub_m)) => {
-            let mut context = Context::new();
             context.insert(
                 "url",
                 ContextValue::String(sub_m.get_one::<String>("url").unwrap()),
@@ -137,7 +155,6 @@ fn main() {
             handler::live(&context);
         }
         Some(("video", sub_m)) => {
-            let mut context = Context::new();
             context.insert(
                 "url",
                 ContextValue::String(sub_m.get_one::<String>("url").unwrap()),
@@ -176,7 +193,6 @@ fn main() {
         }
         Some(("allocate", sub_m)) => {
             eprintln!("Can only allocate 1 room, i thought i can use 1 port multiple times lmao");
-            let mut context = Context::new();
             context.insert(
                 "id",
                 ContextValue::String(sub_m.get_one::<String>("id").unwrap()),
@@ -188,6 +204,11 @@ fn main() {
                 .expect("delay must be a positive integer");
             context.insert("delay", ContextValue::U32(&delay));
             room::allocate(&context);
+        }
+        Some(("print-formats", sub_m)) => {
+            let id = sub_m.get_one::<String>("id").expect("No id given");
+            context.insert("id", ContextValue::String(&id));
+            handler::print_formats(&context);
         }
         _ => println!("No command given"),
     }

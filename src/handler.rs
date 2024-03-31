@@ -14,7 +14,7 @@ pub fn live(ctx: &Context) {
         Ok(url) => url,
         Err(e) => {
             println!("Can't parse to a url, checking for alias");
-            match Url::from_alias(maybe_url_or_alias) {
+            match Url::from_alias(ctx, maybe_url_or_alias) {
                 Some(url) => url,
                 None => {
                     if e == url::ParseError::RelativeUrlWithoutBase {
@@ -128,4 +128,30 @@ pub fn playlist(_ctx: &Context, url: &str, res: &str) {
         println!("{}", result);
     }
     ytdlp.wait().unwrap();
+}
+
+pub fn print_formats(ctx: &Context) {
+    let maybe_url_or_alias = ctx.get("id").unwrap().as_string().unwrap();
+    let url = match Url::parse(maybe_url_or_alias) {
+        Ok(url) => url,
+        Err(e) => {
+            println!("Can't parse to a url, checking for alias");
+            match Url::from_alias(ctx, maybe_url_or_alias) {
+                Some(url) => url,
+                None => {
+                    if e == url::ParseError::RelativeUrlWithoutBase {
+                        println!("Not an alias, attempting to parse to a url by adding https://");
+                        match Url::parse(&format!("https://{}", maybe_url_or_alias)) {
+                            Ok(url) => url,
+                            Err(_) => panic!("Invalid url nor alias: {}", maybe_url_or_alias),
+                        }
+                    } else {
+                        panic!("Invalid url nor alias: {}", maybe_url_or_alias);
+                    }
+                }
+            }
+        }
+    };
+    println!("Url: {}", url);
+    utils::get_list_formats(&url);
 }
