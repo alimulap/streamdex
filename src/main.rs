@@ -2,7 +2,7 @@ use std::fs;
 
 use clap::{Arg, ArgAction, Command};
 use config::Config;
-use context::{Context, ContextValue};
+use context::{Context, Context2, ContextValue};
 
 mod config;
 mod context;
@@ -126,64 +126,84 @@ fn main() {
         .get_matches();
 
     let mut context = Context::new();
-    let config_str =
-        fs::read_to_string("/home/alimulap/.config/streamdex/config.toml").unwrap();
+    let config_path = if let Some(path) = std::env::var_os("STREAMDEX_CONFIG") {
+        path.into_string().unwrap()
+    } else {
+        "/home/alimulap/.config/streamdex/config.toml".to_string()
+    };
+    let config_str = fs::read_to_string(config_path).unwrap();
     let config = toml::from_str::<Config>(&config_str).unwrap();
-    context.insert("config", ContextValue::Config(config));
+    context.insert("config", ContextValue::Config(config.clone()));
     match matches.subcommand() {
         Some(("live", sub_m)) => {
+            let mut context2 = Context2::new(config, "live");
             context.insert(
                 "url",
                 ContextValue::String(sub_m.get_one::<String>("url").unwrap()),
             );
+            context2.url = sub_m.get_one("url").cloned();
             context.insert(
                 "resolution",
                 ContextValue::String(sub_m.get_one::<String>("resolution").unwrap()),
             );
+            context2.resolution = sub_m.get_one("resolution").cloned();
             context.insert(
                 "tool",
                 ContextValue::String(sub_m.get_one::<String>("tool").unwrap()),
             );
+            context2.tool = sub_m.get_one("tool").cloned();
             context.insert(
                 "room",
                 ContextValue::OptionString(sub_m.get_one::<String>("room")),
             );
+            context2.room = sub_m.get_one("room").cloned();
             context.insert(
                 "wait-for-video",
                 ContextValue::Boolean(sub_m.get_one::<bool>("wait-for-video").unwrap_or(&false)),
             );
-            handler::live(&context);
+            context2.wait_for_video = sub_m.get_one("wait-for-video").cloned();
+            //handler::live(&context);
+            handler::live2(&context2);
         }
         Some(("video", sub_m)) => {
+            let mut context2 = Context2::new(config, "video");
             context.insert(
                 "url",
                 ContextValue::String(sub_m.get_one::<String>("url").unwrap()),
             );
+            context2.url = sub_m.get_one("url").cloned();
             context.insert(
                 "resolution",
                 ContextValue::String(sub_m.get_one::<String>("resolution").unwrap()),
             );
+            context2.resolution = sub_m.get_one("resolution").cloned();
             context.insert(
                 "tool",
                 ContextValue::String(sub_m.get_one::<String>("tool").unwrap()),
             );
+            context2.tool = sub_m.get_one("tool").cloned();
             context.insert(
                 "room",
                 ContextValue::OptionString(sub_m.get_one::<String>("room")),
             );
+            context2.room = sub_m.get_one("room").cloned();
             context.insert(
                 "wait-for-video",
                 ContextValue::Boolean(sub_m.get_one::<bool>("wait-for-video").unwrap_or(&false)),
             );
+            context2.wait_for_video = sub_m.get_one("wait-for-video").cloned();
             context.insert(
                 "from",
                 ContextValue::OptionString(sub_m.get_one::<String>("from")),
             );
+            context2.from = sub_m.get_one("from").cloned();
             context.insert(
                 "to",
                 ContextValue::OptionString(sub_m.get_one::<String>("to")),
             );
-            handler::video(&context);
+            context2.to = sub_m.get_one("to").cloned();
+            //handler::video(&context);
+            handler::video2(&context2);
         }
         Some(("playlist", _sub_m)) => {
             eprintln!("Not stable yet");
@@ -193,21 +213,27 @@ fn main() {
         }
         Some(("allocate", sub_m)) => {
             eprintln!("Can only allocate 1 room, i thought i can use 1 port multiple times lmao");
+            eprintln!("Basically this is useless for the time being");
+            let mut context2 = Context2::new(config, "allocate");
             context.insert(
                 "id",
                 ContextValue::String(sub_m.get_one::<String>("id").unwrap()),
             );
+            context2.id = sub_m.get_one("id").cloned();
             let delay = sub_m
                 .get_one::<String>("delay")
                 .unwrap()
                 .parse::<u32>()
                 .expect("delay must be a positive integer");
             context.insert("delay", ContextValue::U32(&delay));
+            context2.delay = sub_m.get_one("delay").cloned();
             room::allocate(&context);
         }
         Some(("print-formats", sub_m)) => {
+            let mut context2 = Context2::new(config, "print-formats");
             let id = sub_m.get_one::<String>("id").expect("No id given");
-            context.insert("id", ContextValue::String(&id));
+            context.insert("id", ContextValue::String(id));
+            context2.id = sub_m.get_one("id").cloned();
             handler::print_formats(&context);
         }
         _ => println!("No command given"),

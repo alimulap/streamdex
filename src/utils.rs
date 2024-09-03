@@ -3,10 +3,11 @@ use std::{fs, process::Command};
 use toml::Value;
 use url::Url;
 
-use crate::context::Context;
+use crate::context::{Context, Context2};
 
 pub trait FromAlias: Sized {
     fn from_alias(ctx: &Context, maybe_alias: &str) -> Option<Self>;
+    fn from_alias2(ctx: &Context2, maybe_alias: &str) -> Option<Self>;
 }
 
 impl FromAlias for Url {
@@ -19,10 +20,33 @@ impl FromAlias for Url {
         //let aliases: Value = serde_json::from_str(include_str!("aliases.json")).unwrap();
         match aliases.get(maybe_alias.to_ascii_lowercase()) {
             Some(url) => {
-                println!("Found url for alias {}: {}", maybe_alias, url.as_str().unwrap());
+                println!(
+                    "Found url for alias {}: {}",
+                    maybe_alias,
+                    url.as_str().unwrap()
+                );
                 Some(Url::parse(url.as_str().unwrap()).expect("Invalid url from aliases.json"))
-            },
-            None => None
+            }
+            None => None,
+        }
+    }
+
+    fn from_alias2(ctx: &Context2, maybe_alias: &str) -> Option<Self> {
+        println!("Checking for alias: {}", maybe_alias);
+        let aliases_path = ctx.config.aliases_path.as_ref().unwrap();
+        let aliases_str = fs::read_to_string(aliases_path).unwrap();
+        let aliases = toml::from_str::<Value>(&aliases_str).unwrap();
+        //let aliases: Value = serde_json::from_str(include_str!("aliases.json")).unwrap();
+        match aliases.get(maybe_alias.to_ascii_lowercase()) {
+            Some(url) => {
+                println!(
+                    "Found url for alias {}: {}",
+                    maybe_alias,
+                    url.as_str().unwrap()
+                );
+                Some(Url::parse(url.as_str().unwrap()).expect("Invalid url from aliases.json"))
+            }
+            None => None,
         }
     }
 }
@@ -35,7 +59,8 @@ pub fn get_webpage_url(url: &str) -> Option<Url> {
         .arg("--cookies-from-browser")
         .arg("edge")
         .output()
-        .unwrap().stdout;
+        .unwrap()
+        .stdout;
     match String::from_utf8(output) {
         Ok(url) => match Url::parse(url.trim()) {
             Ok(url) => Some(url),
@@ -45,7 +70,7 @@ pub fn get_webpage_url(url: &str) -> Option<Url> {
                 None
             }
         },
-        Err(_) => None
+        Err(_) => None,
     }
 }
 
@@ -72,7 +97,7 @@ pub fn get_list_formats(url: &Url) {
         .arg("--print")
         .arg("formats_table")
         .arg("--cookies-from-browser")
-        .arg("chromium")
+        .arg("edge")
         .output()
         .unwrap();
     if output.status.success() {
@@ -210,7 +235,6 @@ impl From<Option<&String>> for Tool {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {

@@ -3,8 +3,9 @@ use std::process::{Command, Stdio};
 use url::Url;
 
 use crate::{
+    context::{Context, Context2},
     runner,
-    utils::{self, ContentType, FromAlias, Resolution, Tool}, context::Context,
+    utils::{self, ContentType, FromAlias, Resolution, Tool},
 };
 
 pub fn live(ctx: &Context) {
@@ -40,6 +41,44 @@ pub fn live(ctx: &Context) {
     match utils::Tool::from_str(tool) {
         Tool::Ytdlp => runner::with_ytdlp(url.to_string(), format, room, *wait_for_video, None),
         Tool::Vlc => runner::only_vlc(url.to_string(), format, room),
+    }
+}
+
+pub fn live2(ctx: &Context2) {
+    println!("Watching a live stream");
+    let maybe_url_or_alias = ctx.url();
+    let url = match Url::parse(&maybe_url_or_alias) {
+        Ok(url) => url,
+        Err(e) => {
+            println!("Can't parse to a url, checking for alias");
+            match Url::from_alias2(ctx, &maybe_url_or_alias) {
+                Some(url) => url,
+                None => {
+                    if e == url::ParseError::RelativeUrlWithoutBase {
+                        println!("Not an alias, attempting to parse to a url by adding https://");
+                        match Url::parse(&format!("https://{}", maybe_url_or_alias)) {
+                            Ok(url) => url,
+                            Err(_) => panic!("Invalid url nor alias: {}", maybe_url_or_alias),
+                        }
+                    } else {
+                        panic!("Invalid url nor alias: {}", maybe_url_or_alias);
+                    }
+                }
+            }
+        }
+    };
+    println!("Url: {}", url);
+    let res = Resolution::from_str(ctx.resolution().as_str());
+    println!("Resolution: {:?}", res);
+    let format = utils::get_format(&url, res, ContentType::Live);
+    let tool = ctx.tool();
+    let room = ctx.room();
+    let wait_for_video = ctx.wait_for_video();
+    match utils::Tool::from_str(&tool) {
+        Tool::Ytdlp => {
+            runner::with_ytdlp(url.to_string(), format, room.as_ref(), wait_for_video, None)
+        }
+        Tool::Vlc => runner::only_vlc(url.to_string(), format, room.as_ref()),
     }
 }
 
@@ -82,15 +121,63 @@ pub fn video(ctx: &Context) {
                 panic!("Range is not supported with vlc(i think..)");
             }
             runner::only_vlc(url.to_string(), format, room)
-        },
+        }
+    }
+}
+
+pub fn video2(ctx: &Context2) {
+    println!("Watching a video");
+    let url = ctx.url();
+    let url = match Url::parse(&url) {
+        Ok(url) => url,
+        Err(e) => {
+            if e == url::ParseError::RelativeUrlWithoutBase {
+                println!("Cannot parse to a url, attempting to parse to a url by adding https://");
+                match Url::parse(&format!("https://{}", url)) {
+                    Ok(url) => url,
+                    Err(_) => panic!("Invalid url: {}", url),
+                }
+            } else {
+                panic!("Invalid url: {}", url);
+            }
+        }
+    };
+    println!("Url: {}", url);
+    let res = Resolution::from_str(ctx.resolution().as_str());
+    println!("Resolution: {:?}", res);
+    let format = utils::get_format(&url, res, ContentType::Video);
+    let tool = ctx.tool();
+    let room = ctx.room();
+    let wait_for_video = ctx.wait_for_video();
+    let from = ctx.from();
+    let to = ctx.to();
+    let range = match (from, to) {
+        (Some(from), Some(to)) => Some(format!("*{}-{}", from, to)),
+        (Some(from), None) => Some(format!("*{}-inf", from)),
+        (None, Some(to)) => Some(format!("*0:0-{}", to)),
+        (None, None) => None,
+    };
+    match utils::Tool::from_str(&tool) {
+        Tool::Ytdlp => runner::with_ytdlp(
+            url.to_string(),
+            format,
+            room.as_ref(),
+            wait_for_video,
+            range,
+        ),
+        Tool::Vlc => {
+            if range.is_some() {
+                panic!("Range is not supported with vlc(i think..)");
+            }
+            runner::only_vlc(url.to_string(), format, room.as_ref())
+        }
     }
 }
 
 #[allow(dead_code)]
 pub fn playlist(_ctx: &Context, url: &str, res: &str) {
     println!("Playing a playlist");
-    let _vlc = Command::new("vlc")
-        .arg("");
+    let _vlc = Command::new("vlc").arg("");
     let mut ytdlp = Command::new("yt-dlp")
         .arg(url)
         .arg("-f")
