@@ -86,6 +86,7 @@ pub struct Context2 {
     pub to: Option<String>,
     pub id: Option<String>,
     pub delay: Option<u32>,
+    pub config_dir: String,
 }
 
 impl Context2 {
@@ -151,5 +152,9 @@ impl Context2 {
             "video" => self.to.clone(),
             _ => panic!("Invalid subcommand"),
         }
+    }
+
+    pub fn config_dir(&self) -> String {
+        self.config_dir.clone()
     }
 }

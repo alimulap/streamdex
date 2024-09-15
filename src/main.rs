@@ -4,11 +4,14 @@ use clap::{Arg, ArgAction, Command};
 use config::Config;
 use context::{Context, Context2, ContextValue};
 
+mod cli;
 mod config;
 mod context;
 mod handler;
+mod links;
 mod room;
 mod runner;
+mod tui;
 mod utils;
 
 fn main() {
@@ -98,6 +101,10 @@ fn main() {
                 ])
         )
         .subcommand(
+            Command::new("tui")
+            .about("Open tui sreen")
+        )
+        .subcommand(
             Command::new("allocate")
             .about("Allocate a room foa a streamer")
             .args(&[
@@ -134,6 +141,13 @@ fn main() {
     let config_str = fs::read_to_string(config_path).unwrap();
     let config = toml::from_str::<Config>(&config_str).unwrap();
     context.insert("config", ContextValue::Config(config.clone()));
+
+    let config_dir = if let Some(path) = std::env::var_os("STREAMDEX_CONFIG_DIR") {
+        path.into_string().unwrap()
+    } else {
+        "/home/alimulap/.config/streamdex/".to_string()
+    };
+
     match matches.subcommand() {
         Some(("live", sub_m)) => {
             let mut context2 = Context2::new(config, "live");
@@ -210,6 +224,11 @@ fn main() {
             //let url = sub_m.get_one::<String>("url").expect("No url given");
             //let res = sub_m.get_one::<String>("resolution").cloned().unwrap_or(String::from("92"));
             //handler::playlist(url, &res);
+        }
+        Some(("tui", _sub_m)) => {
+            let mut ctx = Context2::new(config, "tui");
+            ctx.config_dir = config_dir;
+            tui::run(&ctx);
         }
         Some(("allocate", sub_m)) => {
             eprintln!("Can only allocate 1 room, i thought i can use 1 port multiple times lmao");
