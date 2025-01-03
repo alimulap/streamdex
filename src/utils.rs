@@ -3,17 +3,17 @@ use std::{fs, process::Command};
 use toml::Value;
 use url::Url;
 
-use crate::context::{Context, Context2};
+use crate::context::Context;
 
 pub trait FromAlias: Sized {
     fn from_alias(ctx: &Context, maybe_alias: &str) -> Option<Self>;
-    fn from_alias2(ctx: &Context2, maybe_alias: &str) -> Option<Self>;
+    fn from_alias2(ctx: &Context, maybe_alias: &str) -> Option<Self>;
 }
 
 impl FromAlias for Url {
     fn from_alias(ctx: &Context, maybe_alias: &str) -> Option<Self> {
         println!("Checking for alias: {}", maybe_alias);
-        let config = ctx.get("config").unwrap().as_config().unwrap();
+        let config = &ctx.config;
         let aliases_path = config.aliases_path.as_ref().unwrap();
         let aliases_str = fs::read_to_string(aliases_path).unwrap();
         let aliases = toml::from_str::<Value>(&aliases_str).unwrap();
@@ -31,7 +31,7 @@ impl FromAlias for Url {
         }
     }
 
-    fn from_alias2(ctx: &Context2, maybe_alias: &str) -> Option<Self> {
+    fn from_alias2(ctx: &Context, maybe_alias: &str) -> Option<Self> {
         println!("Checking for alias: {}", maybe_alias);
         let aliases_path = ctx.config.aliases_path.as_ref().unwrap();
         let aliases_str = fs::read_to_string(aliases_path).unwrap();

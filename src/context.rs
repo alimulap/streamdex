@@ -1,82 +1,11 @@
-#![allow(dead_code)]
-
-use std::{
-    collections::HashMap,
-    ops::{Deref, DerefMut},
-};
+use clap::ArgMatches;
 
 use crate::config::Config;
 
-pub enum ContextValue<'b> {
-    String(&'b String),
-    OptionString(Option<&'b String>),
-    U32(&'b u32),
-    Boolean(&'b bool),
-    Config(Config),
-}
-
-impl ContextValue<'_> {
-    pub fn as_string(&self) -> Option<&String> {
-        match self {
-            Self::String(s) => Some(s),
-            _ => None,
-        }
-    }
-
-    pub fn as_u32(&self) -> Option<&u32> {
-        match self {
-            Self::U32(u) => Some(u),
-            _ => None,
-        }
-    }
-    pub fn as_boolean(&self) -> Option<&bool> {
-        match self {
-            Self::Boolean(b) => Some(b),
-            _ => None,
-        }
-    }
-
-    pub fn as_option_string(&self) -> Option<Option<&String>> {
-        match self {
-            Self::OptionString(s) => Some(*s),
-            _ => None,
-        }
-    }
-
-    pub fn as_config(&self) -> Option<&Config> {
-        match self {
-            Self::Config(c) => Some(c),
-            _ => None,
-        }
-    }
-}
-
-pub struct Context<'a>(HashMap<&'a str, ContextValue<'a>>);
-
-impl Context<'_> {
-    pub fn new() -> Self {
-        Self(HashMap::new())
-    }
-}
-
-impl<'a> Deref for Context<'a> {
-    type Target = HashMap<&'a str, ContextValue<'a>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for Context<'_> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
 #[derive(Default)]
-pub struct Context2 {
+pub struct Context {
     pub config: Config,
-    pub subcommand: String,
+    pub subcommand: Option<String>,
     pub url: Option<String>,
     pub resolution: Option<String>,
     pub tool: Option<String>,
@@ -88,17 +17,52 @@ pub struct Context2 {
     pub delay: Option<u32>,
 }
 
-impl Context2 {
-    pub fn new(config: Config, subcommand: &str) -> Self {
+impl Context {
+    pub fn new(config: Config) -> Self {
         Self {
             config,
-            subcommand: subcommand.into(),
             ..Default::default()
         }
     }
 
+    pub fn handle(&mut self, subcommand: &str, sub_m: &ArgMatches) {
+        self.subcommand = Some(subcommand.to_string());
+        match subcommand {
+            "live" => {
+                self.url = sub_m.get_one("url").cloned();
+                self.resolution = sub_m.get_one("resolution").cloned();
+                self.tool = sub_m.get_one("tool").cloned();
+                self.room = sub_m.get_one("room").cloned();
+                self.wait_for_video = sub_m.get_one("wait-for-video").cloned();
+            }
+            "video" => {
+                self.url = sub_m.get_one("url").cloned();
+                self.resolution = sub_m.get_one("resolution").cloned();
+                self.tool = sub_m.get_one("tool").cloned();
+                self.room = sub_m.get_one("room").cloned();
+                self.wait_for_video = sub_m.get_one("wait-for-video").cloned();
+                self.from = sub_m.get_one("from").cloned();
+                self.to = sub_m.get_one("to").cloned();
+            }
+            "allocate" => {
+                self.id = sub_m.get_one("id").cloned();
+                self.delay = sub_m.get_one("delay").cloned();
+            }
+            "print-formats" => {
+                self.id = sub_m.get_one("id").cloned();
+            }
+            _ => {
+                eprintln!("Invalid subcommand");
+            }
+        }
+    }
+
+    fn subcommand(&self) -> &str {
+        self.subcommand.as_ref().expect("Subcommand not set")
+    }
+
     pub fn url(&self) -> String {
-        match self.subcommand.as_str() {
+        match self.subcommand() {
             "live" => self.url.clone().unwrap(),
             "video" => self.id.clone().unwrap(),
             _ => panic!("Invalid subcommand"),
@@ -106,7 +70,7 @@ impl Context2 {
     }
 
     pub fn resolution(&self) -> String {
-        match self.subcommand.as_str() {
+        match self.subcommand() {
             "live" => self.resolution.clone().unwrap(),
             "video" => self.resolution.clone().unwrap(),
             _ => panic!("Invalid subcommand"),
@@ -114,7 +78,7 @@ impl Context2 {
     }
 
     pub fn tool(&self) -> String {
-        match self.subcommand.as_str() {
+        match self.subcommand() {
             "live" => self.tool.clone().unwrap(),
             "video" => self.tool.clone().unwrap(),
             _ => panic!("Invalid subcommand"),
@@ -122,7 +86,7 @@ impl Context2 {
     }
 
     pub fn room(&self) -> Option<String> {
-        match self.subcommand.as_str() {
+        match self.subcommand() {
             "live" => self.room.clone(),
             "video" => self.room.clone(),
             _ => panic!("Invalid subcommand"),
@@ -130,7 +94,7 @@ impl Context2 {
     }
 
     pub fn wait_for_video(&self) -> bool {
-        match self.subcommand.as_str() {
+        match self.subcommand() {
             "live" => self.wait_for_video.unwrap_or(false),
             "video" => false,
             _ => panic!("Invalid subcommand"),
@@ -138,7 +102,7 @@ impl Context2 {
     }
 
     pub fn from(&self) -> Option<String> {
-        match self.subcommand.as_str() {
+        match self.subcommand() {
             "live" => self.from.clone(),
             "video" => self.from.clone(),
             _ => panic!("Invalid subcommand"),
@@ -146,7 +110,7 @@ impl Context2 {
     }
 
     pub fn to(&self) -> Option<String> {
-        match self.subcommand.as_str() {
+        match self.subcommand() {
             "live" => self.to.clone(),
             "video" => self.to.clone(),
             _ => panic!("Invalid subcommand"),
