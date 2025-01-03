@@ -15,7 +15,7 @@ pub enum ContextValue<'b> {
     Config(Config),
 }
 
-impl<'a> ContextValue<'a> {
+impl ContextValue<'_> {
     pub fn as_string(&self) -> Option<&String> {
         match self {
             Self::String(s) => Some(s),
@@ -53,7 +53,7 @@ impl<'a> ContextValue<'a> {
 
 pub struct Context<'a>(HashMap<&'a str, ContextValue<'a>>);
 
-impl<'a> Context<'a> {
+impl Context<'_> {
     pub fn new() -> Self {
         Self(HashMap::new())
     }

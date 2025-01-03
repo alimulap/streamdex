@@ -8,6 +8,7 @@ pub fn with_ytdlp(
     range: Option<String>,
 ) {
     println!("Running with yt-dlp + vlc");
+    #[allow(clippy::zombie_processes)]
     let mut ytdlp = Command::new("yt-dlp")
         .arg(url)
         .arg("-f")
