@@ -8,6 +8,7 @@ use crate::{
     utils::{self, ContentType, FromAlias, Resolution, Tool},
 };
 
+#[allow(unused)]
 pub fn live(ctx: &Context) {
     println!("Watching a live stream");
     let maybe_url_or_alias = ctx.get("url").unwrap().as_string().unwrap();
@@ -82,6 +83,7 @@ pub fn live2(ctx: &Context2) {
     }
 }
 
+#[allow(unused)]
 pub fn video(ctx: &Context) {
     println!("Watching a video");
     let url = ctx.get("url").unwrap().as_string().unwrap();
@@ -184,7 +186,7 @@ pub fn playlist(_ctx: &Context, url: &str, res: &str) {
         .arg(res)
         .arg("-q")
         .arg("--cookies-from-browser")
-        .arg("edge")
+        .arg("firefox")
         .arg("--mark-watched")
         .arg("--flat-playlist")
         .arg("-j")

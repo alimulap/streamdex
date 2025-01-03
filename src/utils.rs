@@ -57,7 +57,7 @@ pub fn get_webpage_url(url: &str) -> Option<Url> {
         .arg("--print")
         .arg("webpage_url")
         .arg("--cookies-from-browser")
-        .arg("edge")
+        .arg("firefox")
         .output()
         .unwrap()
         .stdout;
@@ -97,7 +97,7 @@ pub fn get_list_formats(url: &Url) {
         .arg("--print")
         .arg("formats_table")
         .arg("--cookies-from-browser")
-        .arg("edge")
+        .arg("firefox")
         .output()
         .unwrap();
     if output.status.success() {

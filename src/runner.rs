@@ -16,7 +16,7 @@ pub fn with_ytdlp(
         .arg("-q")
         .arg("-4")
         .arg("--cookies-from-browser")
-        .arg("edge")
+        .arg("firefox")
         .arg("--mark-watched")
         .args(match wait_for_video {
             true => vec!["--wait-for-video", "5"],
