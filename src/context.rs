@@ -10,7 +10,7 @@ pub struct Context {
     pub resolution: Option<String>,
     pub tool: Option<String>,
     pub room: Option<String>,
-    pub wait_for_video: Option<bool>,
+    pub wait_for_video: WaitForVideo,
     pub from: Option<String>,
     pub to: Option<String>,
     pub id: Option<String>,
@@ -34,18 +34,32 @@ impl Context {
                 self.resolution = sub_m.get_one("resolution").cloned();
                 self.tool = sub_m.get_one("tool").cloned();
                 self.room = sub_m.get_one("room").cloned();
-                self.wait_for_video = sub_m.get_one("wait-for-video").cloned();
                 self.print_command = sub_m.get_one("print-command").cloned();
+                self.wait_for_video = if sub_m.contains_id("wait-for-video") {
+                    match sub_m.get_one::<String>("wait-for-video") {
+                        Some(range) => WaitForVideo::Wait(range.clone()),
+                        None => WaitForVideo::wait_with_default(),
+                    }
+                } else {
+                    WaitForVideo::NoWait
+                };
             }
             "video" => {
                 self.url = sub_m.get_one("url").cloned();
                 self.resolution = sub_m.get_one("resolution").cloned();
                 self.tool = sub_m.get_one("tool").cloned();
                 self.room = sub_m.get_one("room").cloned();
-                self.wait_for_video = sub_m.get_one("wait-for-video").cloned();
                 self.from = sub_m.get_one("from").cloned();
                 self.to = sub_m.get_one("to").cloned();
                 self.print_command = sub_m.get_one("print-command").cloned();
+                self.wait_for_video = if sub_m.contains_id("wait-for-video") {
+                    match sub_m.get_one::<String>("wait-for-video") {
+                        Some(range) => WaitForVideo::Wait(range.clone()),
+                        None => WaitForVideo::wait_with_default(),
+                    }
+                } else {
+                    WaitForVideo::NoWait
+                };
             }
             "allocate" => {
                 self.id = sub_m.get_one("id").cloned();
@@ -96,10 +110,9 @@ impl Context {
         }
     }
 
-    pub fn wait_for_video(&self) -> bool {
+    pub fn wait_for_video(&self) -> WaitForVideo {
         match self.subcommand() {
-            "live" => self.wait_for_video.unwrap_or(false),
-            "video" => false,
+            "live" | "video" => self.wait_for_video.clone(),
             _ => panic!("Invalid subcommand"),
         }
     }
@@ -118,5 +131,23 @@ impl Context {
             "video" => self.to.clone(),
             _ => panic!("Invalid subcommand"),
         }
+    }
+}
+
+#[derive(Clone)]
+pub enum WaitForVideo {
+    Wait(String),
+    NoWait,
+}
+
+impl WaitForVideo {
+    fn wait_with_default() -> Self {
+        Self::Wait("5".into())
+    }
+}
+
+impl Default for WaitForVideo {
+    fn default() -> Self {
+        Self::NoWait
     }
 }

@@ -1,10 +1,12 @@
 use std::process::{Command, Stdio};
 
+use crate::context::WaitForVideo;
+
 pub fn with_ytdlp(
     url: String,
     res: String,
     room: Option<&String>,
-    wait_for_video: bool,
+    wait_for_video: WaitForVideo,
     range: Option<String>,
     print_command: bool,
 ) {
@@ -23,8 +25,8 @@ pub fn with_ytdlp(
         .arg("firefox")
         .arg("--mark-watched")
         .args(match wait_for_video {
-            true => vec!["--wait-for-video", "5"],
-            false => vec!["--no-wait-for-video"],
+            WaitForVideo::Wait(range) => vec!["--wait-for-video".into(), range.clone()],
+            WaitForVideo::NoWait => vec!["--no-wait-for-video".into()],
         })
         .arg("--downloader")
         .arg("ffmpeg")
@@ -37,7 +39,7 @@ pub fn with_ytdlp(
         .stdout(Stdio::piped());
     // .spawn()
     // .unwrap();
-    let mut vlc = Command::new("cvlc");
+    let mut vlc = Command::new(if room.is_none() { "vlc" } else { "cvlc" });
     let vlc = match room {
         Some(room_id) => vlc
             .arg("-")
