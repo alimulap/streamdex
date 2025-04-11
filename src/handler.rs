@@ -51,7 +51,7 @@ pub fn live(ctx: &Context) {
     let format = utils::get_format(&url, res, ContentType::Live);
     let tool = ctx.tool();
     let room = ctx.room();
-    let wait_for_video = ctx.wait_for_video();
+    let wait_for_video = ctx.wait_for_live();
     match utils::Tool::from_str(&tool) {
         Tool::Ytdlp => runner::with_ytdlp(
             url.to_string(),
@@ -99,7 +99,7 @@ pub fn video(ctx: &Context) {
     let format = utils::get_format(&url, res, ContentType::Video);
     let tool = ctx.tool();
     let room = ctx.room();
-    let wait_for_video = ctx.wait_for_video();
+    let wait_for_video = ctx.wait_for_live();
     let from = ctx.from();
     let to = ctx.to();
     let range = match (from, to) {

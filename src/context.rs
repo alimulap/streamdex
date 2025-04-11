@@ -10,7 +10,7 @@ pub struct Context {
     pub resolution: Option<String>,
     pub tool: Option<String>,
     pub room: Option<String>,
-    pub wait_for_video: Option<bool>,
+    pub wait_for_live: Option<bool>,
     pub from: Option<String>,
     pub to: Option<String>,
     pub id: Option<String>,
@@ -34,7 +34,7 @@ impl Context {
                 self.resolution = sub_m.get_one("resolution").cloned();
                 self.tool = sub_m.get_one("tool").cloned();
                 self.room = sub_m.get_one("room").cloned();
-                self.wait_for_video = sub_m.get_one("wait-for-video").cloned();
+                self.wait_for_live = sub_m.get_one("wait-for-video").cloned();
                 self.print_command = sub_m.get_one("print-command").cloned();
             }
             "video" => {
@@ -42,7 +42,7 @@ impl Context {
                 self.resolution = sub_m.get_one("resolution").cloned();
                 self.tool = sub_m.get_one("tool").cloned();
                 self.room = sub_m.get_one("room").cloned();
-                self.wait_for_video = sub_m.get_one("wait-for-video").cloned();
+                self.wait_for_live = sub_m.get_one("wait-for-video").cloned();
                 self.from = sub_m.get_one("from").cloned();
                 self.to = sub_m.get_one("to").cloned();
                 self.print_command = sub_m.get_one("print-command").cloned();
@@ -96,9 +96,9 @@ impl Context {
         }
     }
 
-    pub fn wait_for_video(&self) -> bool {
+    pub fn wait_for_live(&self) -> bool {
         match self.subcommand() {
-            "live" => self.wait_for_video.unwrap_or(false),
+            "live" => self.wait_for_live.unwrap_or(false),
             "video" => false,
             _ => panic!("Invalid subcommand"),
         }
