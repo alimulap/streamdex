@@ -4,7 +4,7 @@ pub fn with_ytdlp(
     url: String,
     res: String,
     room: Option<&String>,
-    wait_for_live: bool,
+    wait_for_video: bool,
     range: Option<String>,
     print_command: bool,
 ) {
@@ -22,9 +22,9 @@ pub fn with_ytdlp(
         .arg("--cookies-from-browser")
         .arg("firefox")
         .arg("--mark-watched")
-        .args(match wait_for_live {
-            true => vec!["--wait-for-live", "5"],
-            false => vec!["--no-wait-for-live"],
+        .args(match wait_for_video {
+            true => vec!["--wait-for-video", "5"],
+            false => vec!["--no-wait-for-video"],
         })
         .arg("--downloader")
         .arg("ffmpeg")
