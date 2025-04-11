@@ -9,17 +9,26 @@ use crate::{
 };
 
 pub fn live(ctx: &Context) {
-    println!("Watching a live stream");
+    let print_command = ctx.print_command.unwrap_or(false);
+    if !print_command {
+        println!("Watching a live stream");
+    }
     let maybe_url_or_alias = ctx.url();
     let url = match Url::parse(&maybe_url_or_alias) {
         Ok(url) => url,
         Err(e) => {
-            println!("Can't parse to a url, checking for alias");
+            if !print_command {
+                println!("Can't parse to a url, checking for alias");
+            }
             match Url::from_alias2(ctx, &maybe_url_or_alias) {
                 Some(url) => url,
                 None => {
                     if e == url::ParseError::RelativeUrlWithoutBase {
-                        println!("Not an alias, attempting to parse to a url by adding https://");
+                        if !print_command {
+                            println!(
+                                "Not an alias, attempting to parse to a url by adding https://"
+                            );
+                        }
                         match Url::parse(&format!("https://{}", maybe_url_or_alias)) {
                             Ok(url) => url,
                             Err(_) => panic!("Invalid url nor alias: {}", maybe_url_or_alias),
@@ -31,29 +40,46 @@ pub fn live(ctx: &Context) {
             }
         }
     };
-    println!("Url: {}", url);
+
+    if !print_command {
+        println!("Url: {}", url);
+    }
     let res = Resolution::from_str(ctx.resolution().as_str());
-    println!("Resolution: {:?}", res);
+    if !print_command {
+        println!("Resolution: {:?}", res);
+    }
     let format = utils::get_format(&url, res, ContentType::Live);
     let tool = ctx.tool();
     let room = ctx.room();
     let wait_for_video = ctx.wait_for_video();
     match utils::Tool::from_str(&tool) {
-        Tool::Ytdlp => {
-            runner::with_ytdlp(url.to_string(), format, room.as_ref(), wait_for_video, None)
-        }
+        Tool::Ytdlp => runner::with_ytdlp(
+            url.to_string(),
+            format,
+            room.as_ref(),
+            wait_for_video,
+            None,
+            ctx.print_command.unwrap_or(false),
+        ),
         Tool::Vlc => runner::only_vlc(url.to_string(), format, room.as_ref()),
     }
 }
 
 pub fn video(ctx: &Context) {
-    println!("Watching a video");
+    let print_command = ctx.print_command.unwrap_or(false);
+    if !print_command {
+        println!("Watching a video");
+    }
     let url = ctx.url();
     let url = match Url::parse(&url) {
         Ok(url) => url,
         Err(e) => {
             if e == url::ParseError::RelativeUrlWithoutBase {
-                println!("Cannot parse to a url, attempting to parse to a url by adding https://");
+                if !print_command {
+                    println!(
+                        "Cannot parse to a url, attempting to parse to a url by adding https://"
+                    );
+                }
                 match Url::parse(&format!("https://{}", url)) {
                     Ok(url) => url,
                     Err(_) => panic!("Invalid url: {}", url),
@@ -63,9 +89,13 @@ pub fn video(ctx: &Context) {
             }
         }
     };
-    println!("Url: {}", url);
+    if !print_command {
+        println!("Url: {}", url);
+    }
     let res = Resolution::from_str(ctx.resolution().as_str());
-    println!("Resolution: {:?}", res);
+    if !print_command {
+        println!("Resolution: {:?}", res);
+    }
     let format = utils::get_format(&url, res, ContentType::Video);
     let tool = ctx.tool();
     let room = ctx.room();
@@ -85,6 +115,7 @@ pub fn video(ctx: &Context) {
             room.as_ref(),
             wait_for_video,
             range,
+            ctx.print_command.unwrap_or(false),
         ),
         Tool::Vlc => {
             if range.is_some() {

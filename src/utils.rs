@@ -12,7 +12,10 @@ pub trait FromAlias: Sized {
 
 impl FromAlias for Url {
     fn from_alias(ctx: &Context, maybe_alias: &str) -> Option<Self> {
-        println!("Checking for alias: {}", maybe_alias);
+        let print_command = ctx.print_command.unwrap_or(false);
+        if !print_command {
+            println!("Checking for alias: {}", maybe_alias);
+        }
         let config = &ctx.config;
         let aliases_path = config.aliases_path.as_ref().unwrap();
         let aliases_str = fs::read_to_string(aliases_path).unwrap();
@@ -20,11 +23,13 @@ impl FromAlias for Url {
         //let aliases: Value = serde_json::from_str(include_str!("aliases.json")).unwrap();
         match aliases.get(maybe_alias.to_ascii_lowercase()) {
             Some(url) => {
-                println!(
-                    "Found url for alias {}: {}",
-                    maybe_alias,
-                    url.as_str().unwrap()
-                );
+                if !print_command {
+                    println!(
+                        "Found url for alias {}: {}",
+                        maybe_alias,
+                        url.as_str().unwrap()
+                    );
+                }
                 Some(Url::parse(url.as_str().unwrap()).expect("Invalid url from aliases.json"))
             }
             None => None,
@@ -32,18 +37,23 @@ impl FromAlias for Url {
     }
 
     fn from_alias2(ctx: &Context, maybe_alias: &str) -> Option<Self> {
-        println!("Checking for alias: {}", maybe_alias);
+        let print_command = ctx.print_command.unwrap_or(false);
+        if !print_command {
+            println!("Checking for alias: {}", maybe_alias);
+        }
         let aliases_path = ctx.config.aliases_path.as_ref().unwrap();
         let aliases_str = fs::read_to_string(aliases_path).unwrap();
         let aliases = toml::from_str::<Value>(&aliases_str).unwrap();
         //let aliases: Value = serde_json::from_str(include_str!("aliases.json")).unwrap();
         match aliases.get(maybe_alias.to_ascii_lowercase()) {
             Some(url) => {
-                println!(
-                    "Found url for alias {}: {}",
-                    maybe_alias,
-                    url.as_str().unwrap()
-                );
+                if !print_command {
+                    println!(
+                        "Found url for alias {}: {}",
+                        maybe_alias,
+                        url.as_str().unwrap()
+                    );
+                }
                 Some(Url::parse(url.as_str().unwrap()).expect("Invalid url from aliases.json"))
             }
             None => None,

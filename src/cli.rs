@@ -30,7 +30,11 @@ pub fn parse() -> ArgMatches {
                         .long("wait-for-video")
                         .action(ArgAction::SetTrue)
                         .required(false)
-                        .help("wait for video to be available")
+                        .help("wait for video to be available"),
+                    Arg::new("print-command")
+                        .long("print-command")
+                        .short('p')
+                        .action(ArgAction::SetTrue)
                 ])
         )
         .subcommand(

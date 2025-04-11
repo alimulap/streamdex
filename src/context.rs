@@ -15,6 +15,7 @@ pub struct Context {
     pub to: Option<String>,
     pub id: Option<String>,
     pub delay: Option<u32>,
+    pub print_command: Option<bool>,
 }
 
 impl Context {
@@ -34,6 +35,7 @@ impl Context {
                 self.tool = sub_m.get_one("tool").cloned();
                 self.room = sub_m.get_one("room").cloned();
                 self.wait_for_video = sub_m.get_one("wait-for-video").cloned();
+                self.print_command = sub_m.get_one("print-command").cloned();
             }
             "video" => {
                 self.url = sub_m.get_one("url").cloned();
@@ -43,6 +45,7 @@ impl Context {
                 self.wait_for_video = sub_m.get_one("wait-for-video").cloned();
                 self.from = sub_m.get_one("from").cloned();
                 self.to = sub_m.get_one("to").cloned();
+                self.print_command = sub_m.get_one("print-command").cloned();
             }
             "allocate" => {
                 self.id = sub_m.get_one("id").cloned();
