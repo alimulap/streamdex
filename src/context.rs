@@ -34,7 +34,7 @@ impl Context {
                 self.resolution = sub_m.get_one("resolution").cloned();
                 self.tool = sub_m.get_one("tool").cloned();
                 self.room = sub_m.get_one("room").cloned();
-                self.wait_for_live = sub_m.get_one("wait-for-video").cloned();
+                self.wait_for_live = sub_m.get_one("wait-for-live").cloned();
                 self.print_command = sub_m.get_one("print-command").cloned();
             }
             "video" => {
@@ -42,7 +42,7 @@ impl Context {
                 self.resolution = sub_m.get_one("resolution").cloned();
                 self.tool = sub_m.get_one("tool").cloned();
                 self.room = sub_m.get_one("room").cloned();
-                self.wait_for_live = sub_m.get_one("wait-for-video").cloned();
+                self.wait_for_live = sub_m.get_one("wait-for-live").cloned();
                 self.from = sub_m.get_one("from").cloned();
                 self.to = sub_m.get_one("to").cloned();
                 self.print_command = sub_m.get_one("print-command").cloned();

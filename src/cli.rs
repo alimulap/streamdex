@@ -25,9 +25,9 @@ pub fn parse() -> ArgMatches {
                         .long("room")
                         .required(false)
                         .help("using an allocated room(supply with room id) instead of opening a new vlc instance"),
-                    Arg::new("wait-for-video")
+                    Arg::new("wait-for-live")
                         .short('w')
-                        .long("wait-for-video")
+                        .long("wait-for-live")
                         .action(ArgAction::SetTrue)
                         .required(false)
                         .help("wait for video to be available"),
@@ -61,9 +61,9 @@ pub fn parse() -> ArgMatches {
                         .required(false)
                         .conflicts_with("tool")
                         .help("using an allocated room(supply with room id) instead of opening a new vlc instance"),
-                    Arg::new("wait-for-video")
+                    Arg::new("wait-for-live")
                         .short('w')
-                        .long("wait-for-video")
+                        .long("wait-for-live")
                         .action(ArgAction::SetTrue)
                         .required(false)
                         .help("wait for video to be available"),
