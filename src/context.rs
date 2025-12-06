@@ -21,7 +21,7 @@ impl Context {
         let target = cli
             .get_one::<String>("target")
             .cloned()
-            .ok_or(anyhow::anyhow!("No target provided"))?
+            .expect("required by clap")
             .to_target();
         let format = cli.get_one::<String>("format").cloned();
         let interval = cli

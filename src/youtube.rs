@@ -177,9 +177,7 @@ impl YouTube {
             .inspect_err(|e| eprintln!("Can't get channel ID: {e}"))?;
 
         if let Some(channel) = channel_list.items.and_then(|mut items| items.pop()) {
-            let channel_id = channel
-                .id
-                .ok_or(anyhow::anyhow!("No channel id found in channel data"))?;
+            let channel_id = channel.id.ok_or(Error::NoDataFound(FetchData::ChannelID))?;
 
             saved_ids.insert(handle.to_string(), channel_id.clone());
             fs::write(
@@ -189,7 +187,7 @@ impl YouTube {
 
             return Ok(channel_id);
         } else {
-            Err(anyhow::anyhow!("No channel found with hanle: {handle}"))
+            Err(Error::NoChannelFound(handle.to_string()).into())
         }
     }
 

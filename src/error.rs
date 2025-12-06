@@ -6,6 +6,8 @@ use std::fmt::Display;
 pub enum Error {
     #[error("No broadcast found in channel")]
     NoBroadcast,
+    #[error("No channel found with handle/username: {0}")]
+    NoChannelFound(String),
     #[error("Fetching youtube live stream failed from channel_id {0}")]
     YTFetchLiveFailed(String, google_youtube3::Error),
     #[error("Fetching youtube video detail failed")]
