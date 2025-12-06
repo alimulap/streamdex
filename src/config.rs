@@ -9,6 +9,20 @@ pub struct Config {
     pub client_secret: PathBuf,
     pub presist_token: PathBuf,
     pub saved_yt_channel_ids: PathBuf,
+    pub default_parameters: DefaultParameters,
+
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct DefaultParameters {
+    pub format: Formats,
+    pub interval: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct Formats {
+    pub youtube: String,
+    pub twitch: String,
 }
 
 impl Config {

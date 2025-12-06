@@ -51,7 +51,10 @@ impl YouTube {
         ctx: &Context,
     ) -> anyhow::Result<()> {
         let video_id = video.id.ok_or(Error::NoDataFound(FetchData::VideoID))?;
-        let format = ctx.format.clone().unwrap_or("93".to_string());
+        let format = ctx
+            .format
+            .clone()
+            .unwrap_or(ctx.config.default_parameters.format.youtube.clone());
         let print_format = ctx.print_command;
 
         watch_with_ytdlp_and_vlc(
@@ -75,7 +78,9 @@ impl YouTube {
                 .id
                 .as_ref()
                 .ok_or(Error::NoDataFound(FetchData::VideoID))?;
-            let interval = ctx.interval.unwrap_or(35);
+            let interval = ctx
+                .interval
+                .unwrap_or(ctx.config.default_parameters.interval);
             let title = video
                 .snippet
                 .as_ref()

@@ -37,7 +37,10 @@ async fn main() -> anyhow::Result<()> {
                 //         "Should get one video from extracted youtube video id"
                 //     ))?
                 //     .clone();
-                let format = ctx.format.clone().unwrap_or("93".to_string());
+                let format = ctx
+                    .format
+                    .clone()
+                    .unwrap_or(ctx.config.default_parameters.format.youtube);
                 let print_command = ctx.print_command;
                 watch_with_ytdlp_and_vlc(url.to_string(), format, None, print_command)?;
             }
