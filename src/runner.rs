@@ -6,7 +6,6 @@ use std::time::Duration;
 pub fn watch_with_ytdlp_and_vlc(
     url: String,
     res: String,
-    // wait_for_video: WaitForVideo,
     range: Option<String>,
     print_command: bool,
 ) -> anyhow::Result<()> {
@@ -24,6 +23,12 @@ pub fn watch_with_ytdlp_and_vlc(
         .arg("--cookies-from-browser")
         .arg("firefox")
         .arg("--mark-watched")
+        .arg("--wait-for-video")
+        .arg("5")
+        // .args(match wait_for_video {
+        //     true => vec!["--wait-for-video".into(), "5"],
+        //     false => vec![],
+        // })
         // .args(match wait_for_video {
         //     WaitForVideo::Wait(range) => vec!["--wait-for-video".into(), range.clone()],
         //     WaitForVideo::NoWait => vec!["--no-wait-for-video".into()],

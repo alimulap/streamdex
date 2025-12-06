@@ -71,15 +71,24 @@ impl YouTube {
         ctx: &Context,
     ) -> Result<(), Error> {
         if let Some((video, start_time)) = self.choose_closest_to_start(&videos) {
-            let video_id = video.id.ok_or(Error::NoDataFound(FetchData::VideoID))?;
+            let video_id = video
+                .id
+                .as_ref()
+                .ok_or(Error::NoDataFound(FetchData::VideoID))?;
             let interval = ctx.interval.unwrap_or(35);
             let title = video
                 .snippet
-                .and_then(|s| s.title)
+                .as_ref()
+                .and_then(|s| s.title.as_ref())
                 .ok_or(Error::NoDataFound(FetchData::Snippet))?;
 
             let mut minutes_left = start_time.signed_duration_since(Utc::now()).num_minutes();
             let hours_left: f64 = minutes_left as f64 / 60.0;
+
+            if minutes_left < 0 {
+                self.handle_live(channel_handle, video.clone(), ctx)?;
+                return Ok(());
+            }
 
             println!("Waiting for upcoming live stream: {video_id}");
             println!("  title\t\t: {title}");
