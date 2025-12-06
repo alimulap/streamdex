@@ -1,19 +1,19 @@
 use std::process::{Command, Stdio};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
-use crate::context::WaitForVideo;
-
-pub fn with_ytdlp(
+pub fn watch_with_ytdlp_and_vlc(
     url: String,
     res: String,
-    room: Option<&String>,
-    wait_for_video: WaitForVideo,
+    // wait_for_video: WaitForVideo,
     range: Option<String>,
     print_command: bool,
-) {
+) -> anyhow::Result<()> {
     if !print_command {
         println!("Running with yt-dlp + vlc");
     }
-    #[allow(clippy::zombie_processes)]
+    // #[allow(clippy::zombie_processes)]
     let mut ytdlp = Command::new("yt-dlp");
     ytdlp
         .arg(url)
@@ -24,10 +24,10 @@ pub fn with_ytdlp(
         .arg("--cookies-from-browser")
         .arg("firefox")
         .arg("--mark-watched")
-        .args(match wait_for_video {
-            WaitForVideo::Wait(range) => vec!["--wait-for-video".into(), range.clone()],
-            WaitForVideo::NoWait => vec!["--no-wait-for-video".into()],
-        })
+        // .args(match wait_for_video {
+        //     WaitForVideo::Wait(range) => vec!["--wait-for-video".into(), range.clone()],
+        //     WaitForVideo::NoWait => vec!["--no-wait-for-video".into()],
+        // })
         .arg("--downloader")
         .arg("ffmpeg")
         .args(match range {
@@ -39,82 +39,82 @@ pub fn with_ytdlp(
         .stdout(Stdio::piped());
     // .spawn()
     // .unwrap();
-    let mut vlc = Command::new(if room.is_none() { "vlc" } else { "cvlc" });
-    let vlc = match room {
-        Some(room_id) => vlc
-            .arg("-")
-            // .stdin(Stdio::from(ytdlp.stdout.take().unwrap()))
-            .arg("--sout")
-            .arg(format!("#transcode{{vcodec=mp4v,vb=2048,acodec=mp4a,ab=128,channels=2,scale=1}}:standard{{access=http,mux=ts,dst=localhost:8080/streamdex-{}.mp4}}", room_id))
-            .stdout(Stdio::piped()),
-            // .spawn()
-            // .expect("Failed to start cvlc"),
-        None => vlc
-            .arg("-")
-            // .stdin(Stdio::from(ytdlp.stdout.take().unwrap()))
-            .stdout(Stdio::piped()),
-            // .spawn()
-            // .expect("Failed to start vlc"),
-    };
+    let mut vlc = Command::new("vlc");
+    let vlc = vlc.arg("-").stdout(Stdio::piped());
     if print_command {
         println!(
             "yt-dlp {} | vlc {}",
             ytdlp
                 .get_args()
-                .map(|arg| arg.to_str().unwrap())
-                .collect::<Vec<&str>>()
+                .map(|arg| arg.to_str())
+                .collect::<Option<Vec<&str>>>()
+                .ok_or_else(|| anyhow::anyhow!("Failed to convert yt-dlp args to string"))?
                 .join(" ")
                 .to_owned(),
             vlc.get_args()
-                .map(|arg| arg.to_str().unwrap())
-                .collect::<Vec<&str>>()
+                .map(|arg| arg.to_str())
+                .collect::<Option<Vec<&str>>>()
+                .ok_or_else(|| anyhow::anyhow!("Failed to convert vlc args to string"))?
                 .join(" ")
                 .to_owned(),
         );
+        Ok(())
     } else {
-        let mut ytdlp = ytdlp.spawn().unwrap();
-        let vlc = vlc
-            .stdin(Stdio::from(ytdlp.stdout.take().unwrap()))
-            .spawn()
-            .unwrap();
-        let output = vlc.wait_with_output().unwrap();
-        let result = String::from_utf8(output.stdout).unwrap();
-        println!("{}", result);
-        ytdlp.wait().unwrap();
-        ytdlp.kill().unwrap();
+        let mut ytdlp = ytdlp.spawn()?;
+        let mut vlc = vlc
+            .stdin(Stdio::from(ytdlp.stdout.take().ok_or_else(|| {
+                anyhow::anyhow!("Failed to take yt-dlp stdout")
+            })?))
+            .spawn()?;
+
+        let running = Arc::new(AtomicBool::new(true));
+        let r = running.clone();
+
+        ctrlc::set_handler(move || {
+            println!("\nReceived Ctrl+C, cleaning up...");
+            r.store(false, Ordering::SeqCst);
+        })?;
+
+        loop {
+            std::thread::sleep(Duration::from_secs(1));
+
+            if !running.load(Ordering::SeqCst) {
+                let _ = ytdlp.kill();
+                let _ = ytdlp.wait();
+                break;
+            }
+
+            if let Ok(Some(status)) = vlc.try_wait() {
+                if let Some(mut out) = vlc.stdout.take() {
+                    let mut buffer = String::new();
+                    use std::io::Read;
+                    out.read_to_string(&mut buffer)?;
+                    println!("VLC output: {}", buffer);
+                }
+                println!("VLC exited with status: {}", status);
+
+                let _ = ytdlp.kill();
+                let _ = ytdlp.wait();
+
+                break;
+            }
+
+            if let Ok(Some(status)) = ytdlp.try_wait() {
+                if let Some(mut out) = ytdlp.stdout.take() {
+                    let mut buffer = String::new();
+                    use std::io::Read;
+                    out.read_to_string(&mut buffer)?;
+                    println!("yt-dlp output: {}", buffer);
+                }
+                println!("yt-dlp exited with status: {}", status);
+
+                let _ = vlc.kill();
+                let _ = vlc.wait();
+
+                break;
+            }
+        }
+
+        Ok(())
     }
-}
-
-pub fn only_vlc(url: String, res: String, room: Option<&String>) {
-    println!("Running with only vlc");
-    let vlc = match room {
-        Some(room_id) => Command::new("cvlc")
-            .arg(url)
-            .arg("--preferred-resolution")
-            .arg(res)
-            .arg("--sout")
-            .arg(format!("#transcode{{vcodec=mp4v,vb=2048,acodec=mp4a,ab=128,channels=2,scale=1}}:standard{{access=http,mux=ts,dst=localhost:8080/streamdex-{}.mp4}}", room_id))
-            .spawn()
-            .unwrap(),
-        None => Command::new("vlc")
-            .arg("--preferred-resolution")
-            .arg(res)
-            .arg(url)
-            .spawn()
-            .unwrap(),
-    };
-    let output = vlc.wait_with_output().unwrap();
-    let result = String::from_utf8(output.stdout).unwrap();
-    println!("{}", result);
-}
-
-#[test]
-fn test_stream() {
-    let mut process = Command::new("vlc")
-        .arg("http://localhost:8080")
-        .arg("--loop")
-        .arg("vlc://pause:10")
-        .spawn()
-        .unwrap();
-    process.wait().unwrap();
 }

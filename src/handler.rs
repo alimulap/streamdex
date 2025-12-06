@@ -1,196 +1,123 @@
-use std::process::{Command, Stdio};
+use std::time::Duration;
 
-use url::Url;
+use chrono::Utc;
+use google_youtube3::api::Video;
 
-use crate::{
-    context::Context,
-    runner,
-    utils::{self, ContentType, FromAlias, Resolution, Tool},
-};
+use crate::context::Context;
+use crate::error::{Error, FetchData};
+use crate::runner::watch_with_ytdlp_and_vlc;
+use crate::youtube::{LiveStatus, YouTube};
 
-pub fn live(ctx: &Context) {
-    let print_command = ctx.print_command.unwrap_or(false);
-    if !print_command {
-        println!("Watching a live stream");
-    }
-    let maybe_url_or_alias = ctx.url();
-    let url = match Url::parse(&maybe_url_or_alias) {
-        Ok(url) => url,
-        Err(e) => {
-            if !print_command {
-                println!("Can't parse to a url, checking for alias");
+impl YouTube {
+    pub async fn check_youtube_live(&self, handle: &str, ctx: &Context) -> anyhow::Result<()> {
+        let channel_id = self.get_channel_id(handle, &ctx).await?;
+
+        let ids = self.get_live_ids(&channel_id, LiveStatus::Live).await?;
+
+        if !ids.is_empty() {
+            let videos = self.get_videos_details(ids).await?;
+            let live_stream = self.get_one_that_actually_live(&videos)?;
+
+            if let Some(video) = live_stream {
+                self.handle_live(handle, video, ctx)?;
             }
-            match Url::from_alias2(ctx, &maybe_url_or_alias) {
-                Some(url) => url,
-                None => {
-                    if e == url::ParseError::RelativeUrlWithoutBase {
-                        if !print_command {
-                            println!(
-                                "Not an alias, attempting to parse to a url by adding https://"
-                            );
-                        }
-                        match Url::parse(&format!("https://{}", maybe_url_or_alias)) {
-                            Ok(url) => url,
-                            Err(_) => panic!("Invalid url nor alias: {}", maybe_url_or_alias),
-                        }
-                    } else {
-                        panic!("Invalid url nor alias: {}", maybe_url_or_alias);
-                    }
-                }
+        } else {
+            let ids = self.get_live_ids(&channel_id, LiveStatus::Upcoming).await?;
+            if ids.is_empty() {
+                println!(
+                    "Channel {} is not live and has no upcoming streams.",
+                    handle
+                );
+                return Ok(());
             }
+
+            let videos = self.get_videos_details(ids).await?;
+
+            if let Some(live) = self.get_one_that_actually_live(&videos)? {
+                self.handle_live(handle, live, ctx)?;
+            }
+
+            println!("Currently no live stream for youtube channel {handle}/{channel_id}");
+
+            let upcoming_videos = self.get_ones_that_actually_upcoming(&videos)?;
+            self.handle_upcoming(handle, &upcoming_videos, ctx).await?;
         }
-    };
+        Ok(())
+    }
+    pub fn handle_live(
+        &self,
+        _channel_handle: &str,
+        video: Video,
+        ctx: &Context,
+    ) -> anyhow::Result<()> {
+        let video_id = video.id.ok_or(Error::NoDataFound(FetchData::VideoID))?;
+        let format = ctx.format.clone().unwrap_or("93".to_string());
+        let print_format = ctx.print_command;
 
-    if !print_command {
-        println!("Url: {}", url);
-    }
-    let res = Resolution::from_str(ctx.resolution().as_str());
-    if !print_command {
-        println!("Resolution: {:?}", res);
-    }
-    let format = utils::get_format(&url, res, ContentType::Live);
-    let tool = ctx.tool();
-    let room = ctx.room();
-    let wait_for_video = ctx.wait_for_video();
-    match utils::Tool::from_str(&tool) {
-        Tool::Ytdlp => runner::with_ytdlp(
-            url.to_string(),
+        watch_with_ytdlp_and_vlc(
+            format!("https://www.youtube.com/watch?v={video_id}"),
             format,
-            room.as_ref(),
-            wait_for_video,
             None,
-            ctx.print_command.unwrap_or(false),
-        ),
-        Tool::Vlc => runner::only_vlc(url.to_string(), format, room.as_ref()),
-    }
-}
+            print_format,
+        )?;
 
-pub fn video(ctx: &Context) {
-    let print_command = ctx.print_command.unwrap_or(false);
-    if !print_command {
-        println!("Watching a video");
+        Ok(())
     }
-    let url = ctx.url();
-    let url = match Url::parse(&url) {
-        Ok(url) => url,
-        Err(e) => {
-            if e == url::ParseError::RelativeUrlWithoutBase {
-                if !print_command {
-                    println!(
-                        "Cannot parse to a url, attempting to parse to a url by adding https://"
-                    );
-                }
-                match Url::parse(&format!("https://{}", url)) {
-                    Ok(url) => url,
-                    Err(_) => panic!("Invalid url: {}", url),
-                }
+
+    pub async fn handle_upcoming(
+        &self,
+        channel_handle: &str,
+        videos: &[Video],
+        ctx: &Context,
+    ) -> Result<(), Error> {
+        if let Some((video, start_time)) = self.choose_closest_to_start(&videos) {
+            let video_id = video.id.ok_or(Error::NoDataFound(FetchData::VideoID))?;
+            let interval = ctx.interval.unwrap_or(35);
+            let title = video
+                .snippet
+                .and_then(|s| s.title)
+                .ok_or(Error::NoDataFound(FetchData::Snippet))?;
+
+            let mut minutes_left = start_time.signed_duration_since(Utc::now()).num_minutes();
+            let hours_left: f64 = minutes_left as f64 / 60.0;
+
+            println!("Waiting for upcoming live stream: {video_id}");
+            println!("  title\t\t: {title}");
+
+            if hours_left > 1.0 {
+                println!("  starting in\t: {hours_left:.1} hours");
             } else {
-                panic!("Invalid url: {}", url);
+                println!("  starting in\t: {minutes_left} minutes");
             }
-        }
-    };
-    if !print_command {
-        println!("Url: {}", url);
-    }
-    let res = Resolution::from_str(ctx.resolution().as_str());
-    if !print_command {
-        println!("Resolution: {:?}", res);
-    }
-    let format = utils::get_format(&url, res, ContentType::Video);
-    let tool = ctx.tool();
-    let room = ctx.room();
-    let wait_for_video = ctx.wait_for_video();
-    let from = ctx.from();
-    let to = ctx.to();
-    let range = match (from, to) {
-        (Some(from), Some(to)) => Some(format!("*{}-{}", from, to)),
-        (Some(from), None) => Some(format!("*{}-inf", from)),
-        (None, Some(to)) => Some(format!("*0:0-{}", to)),
-        (None, None) => None,
-    };
-    match utils::Tool::from_str(&tool) {
-        Tool::Ytdlp => runner::with_ytdlp(
-            url.to_string(),
-            format,
-            room.as_ref(),
-            wait_for_video,
-            range,
-            ctx.print_command.unwrap_or(false),
-        ),
-        Tool::Vlc => {
-            if range.is_some() {
-                panic!("Range is not supported with vlc(i think..)");
-            }
-            runner::only_vlc(url.to_string(), format, room.as_ref())
-        }
-    }
-}
 
-#[allow(dead_code)]
-pub fn playlist(_ctx: &Context, url: &str, res: &str) {
-    println!("Playing a playlist");
-    let _vlc = Command::new("vlc").arg("");
-    let mut ytdlp = Command::new("yt-dlp")
-        .arg(url)
-        .arg("-f")
-        .arg(res)
-        .arg("-q")
-        .arg("--cookies-from-browser")
-        .arg("firefox")
-        .arg("--mark-watched")
-        .arg("--flat-playlist")
-        .arg("-j")
-        .stdout(Stdio::piped())
-        .spawn()
-        .unwrap();
-    let jq = Command::new("jq")
-        .arg("-r")
-        .arg(".url")
-        .stdin(Stdio::from(ytdlp.stdout.take().unwrap()))
-        .stdout(Stdio::piped())
-        .output()
-        .unwrap();
-    if let Ok(urls) = String::from_utf8(jq.stdout) {
-        let urls = urls
-            .lines()
-            .map(|url| url.replace("music.", ""))
-            .collect::<Vec<_>>();
-        println!("{:?}", urls);
-        let vlc = Command::new("vlc")
-            .args(urls)
-            .arg("-L")
-            .stdout(Stdio::piped())
-            .spawn()
-            .unwrap();
-        let output = vlc.wait_with_output().unwrap();
-        let result = String::from_utf8(output.stdout).unwrap();
-        println!("{}", result);
-    }
-    ytdlp.wait().unwrap();
-}
+            println!();
 
-pub fn print_formats(ctx: &Context) {
-    let maybe_url_or_alias = ctx.id.clone().unwrap();
-    let url = match Url::parse(maybe_url_or_alias.as_str()) {
-        Ok(url) => url,
-        Err(e) => {
-            println!("Can't parse to a url, checking for alias");
-            match Url::from_alias(ctx, maybe_url_or_alias.as_str()) {
-                Some(url) => url,
-                None => {
-                    if e == url::ParseError::RelativeUrlWithoutBase {
-                        println!("Not an alias, attempting to parse to a url by adding https://");
-                        match Url::parse(&format!("https://{}", maybe_url_or_alias)) {
-                            Ok(url) => url,
-                            Err(_) => panic!("Invalid url nor alias: {}", maybe_url_or_alias),
-                        }
-                    } else {
-                        panic!("Invalid url nor alias: {}", maybe_url_or_alias);
+            let mut first_loop = true;
+
+            loop {
+                if !first_loop {
+                    let videos = self.get_videos_details(vec![video_id.clone()]).await?;
+                    if let Some(live) = self.get_one_that_actually_live(&videos)? {
+                        self.handle_live(channel_handle, live, ctx)?;
+                        break;
                     }
                 }
+
+                minutes_left = start_time.signed_duration_since(Utc::now()).num_minutes();
+                let wait_time = if minutes_left > 0 && minutes_left < interval as i64 {
+                    minutes_left as u64
+                } else {
+                    interval
+                };
+
+                println!("Waiting {wait_time} minutes until fetching new data...");
+
+                tokio::time::sleep(Duration::from_mins(wait_time)).await;
+
+                first_loop = false;
             }
         }
-    };
-    println!("Url: {}", url);
-    utils::get_list_formats(&url);
+
+        Ok(())
+    }
 }

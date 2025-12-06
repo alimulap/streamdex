@@ -1,7 +1,7 @@
 [package]
 name = "streamdex"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -11,4 +11,15 @@ serde = { version = "1.0.197", features = ["derive"] }
 # serde_json = "1.0.111"
 toml = "0.8.10"
 url = "2.5.0"
+rustls = "0.23"
 nix = { version = "0.29.0", features = ["process", "signal"] }
+anyhow = "1.0.98"
+google-youtube3 = "6.0.0"
+hyper = "1.6.0"
+hyper-rustls = "0.27.7"
+tokio = { version = "1.48.0", features = ["rt-multi-thread", "macros"] }
+yup-oauth2 = "6.1"
+regex = "1.12.2"
+chrono = "0.4"
+thiserror = "2.0.17"
+ctrlc = "3.5.1"

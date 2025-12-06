@@ -1,0 +1,7 @@
+[name]
+youtube = "https://www.youtube.com/@example"
+twitch = "https://www.twitch.tv/example"
+
+[name2]
+youtube = "https://www.youtube.com/@example2"
+twitch = "https://www.twitch.tv/example2"
