@@ -75,63 +75,80 @@ impl YouTube {
         videos: &[Video],
         ctx: &Context,
     ) -> Result<(), Error> {
-        if let Some((video, start_time)) = self.choose_closest_to_start(&videos) {
+        let closest = self.choose_closest_to_start(&videos);
+
+        let threshold = ctx
+            .threshold
+            .unwrap_or(ctx.config.default_parameters.threshold);
+
+        if let Some((video, start_time)) = closest {
             let video_id = video
                 .id
                 .as_ref()
                 .ok_or(Error::NoDataFound(FetchData::VideoID))?;
-            let interval = ctx
-                .interval
-                .unwrap_or(ctx.config.default_parameters.interval);
             let title = video
                 .snippet
                 .as_ref()
                 .and_then(|s| s.title.as_ref())
                 .ok_or(Error::NoDataFound(FetchData::Snippet))?;
-
-            let mut minutes_left = start_time.signed_duration_since(Utc::now()).num_minutes();
+            let minutes_left = start_time.signed_duration_since(Utc::now()).num_minutes();
             let hours_left: f64 = minutes_left as f64 / 60.0;
 
-            if minutes_left < 0 {
+            if minutes_left < threshold {
                 self.handle_live(channel_handle, video.clone(), ctx)?;
                 return Ok(());
             }
 
-            println!("Waiting for upcoming live stream: {video_id}");
-            println!("  title\t\t: {title}");
+            println!("Closest stream to start is {video_id}");
+            println!("- with title\t: {title}");
 
             if hours_left > 1.0 {
-                println!("  starting in\t: {hours_left:.1} hours");
+                println!("- starting in\t: {hours_left:.1} hours");
             } else {
-                println!("  starting in\t: {minutes_left} minutes");
+                println!("- starting in\t: {minutes_left} minutes");
             }
+        }
 
-            println!();
+        let interval = ctx
+            .interval
+            .unwrap_or(ctx.config.default_parameters.interval);
+        let channel_id = self.get_channel_id(channel_handle, ctx).await?;
 
-            let mut first_loop = true;
+        let mut first_loop = true;
 
-            loop {
-                if !first_loop {
-                    let videos = self.get_videos_details(vec![video_id.clone()]).await?;
+        loop {
+            if !first_loop {
+                let live_ids = self.get_live_ids(&channel_id, LiveStatus::Live).await?;
+                if !live_ids.is_empty() {
+                    let videos = self.get_videos_details(live_ids).await?;
                     if let Some(live) = self.get_one_that_actually_live(&videos)? {
                         self.handle_live(channel_handle, live, ctx)?;
                         break;
                     }
                 }
 
-                minutes_left = start_time.signed_duration_since(Utc::now()).num_minutes();
-                let wait_time = if minutes_left > 0 && minutes_left < interval as i64 {
-                    minutes_left as u64
-                } else {
-                    interval
-                };
-
-                println!("Waiting {wait_time} minutes until fetching new data...");
-
-                tokio::time::sleep(Duration::from_mins(wait_time)).await;
-
-                first_loop = false;
+                let upcoming_ids = self.get_live_ids(&channel_id, LiveStatus::Upcoming).await?;
+                if !upcoming_ids.is_empty() {
+                    let videos = self.get_videos_details(upcoming_ids).await?;
+                    let actually_upcoming = self.get_ones_that_actually_upcoming(&videos)?;
+                    if let Some((video, start_time)) =
+                        self.choose_closest_to_start(&actually_upcoming)
+                    {
+                        let minutes_left =
+                            start_time.signed_duration_since(Utc::now()).num_minutes();
+                        if minutes_left < threshold {
+                            self.handle_live(channel_handle, video, ctx)?;
+                            break;
+                        }
+                    }
+                }
             }
+
+            println!("Waiting {interval} minutes until fetching new data...");
+
+            tokio::time::sleep(Duration::from_mins(interval)).await;
+
+            first_loop = false;
         }
 
         Ok(())

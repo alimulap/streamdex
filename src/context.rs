@@ -11,6 +11,7 @@ pub struct Context {
     pub format: Option<String>,
     pub interval: Option<u64>,
     pub _wait_for_live: bool,
+    pub threshold: Option<i64>,
     // pub from: Option<String>,
     // pub to: Option<String>,
     pub print_command: bool,
@@ -29,6 +30,7 @@ impl Context {
             .cloned()
             .map(|s| s.parse::<u64>())
             .transpose()?;
+        let threshold = cli.get_one("threshold").cloned();
         let wait_for_live = cli.get_flag("wait-for-live");
         let print_command = cli.get_flag("print-command");
 
@@ -38,6 +40,7 @@ impl Context {
             format,
             interval,
             _wait_for_live: wait_for_live,
+            threshold,
             print_command,
         })
     }

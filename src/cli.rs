@@ -22,6 +22,10 @@ pub fn parse() -> ArgMatches {
                 .required_if_eq("wait-for-live", "true")
                 .required(false)
                 .help("Interval in seconds to check for new updates"),
+            Arg::new("threshold")
+                .index(3)
+                .required(false)
+                .help("How many minutes minimal to watch the upcoming stream"),
             Arg::new("youtube")
                 .long("youtube")
                 .action(ArgAction::SetTrue)

@@ -20,6 +20,7 @@ pub struct Config {
 pub struct DefaultParameters {
     pub format: Formats,
     pub interval: u64,
+    pub threshold: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
