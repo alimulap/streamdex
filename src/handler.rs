@@ -11,7 +11,7 @@ use crate::twitch::Twitch;
 use crate::youtube::{LiveStatus, YouTube};
 
 impl YouTube {
-    pub async fn check_youtube_live(&self, handle: &str, ctx: &Context) -> anyhow::Result<()> {
+    pub async fn handle_channel(&self, handle: &str, ctx: &Context) -> anyhow::Result<()> {
         let channel_id = self.get_channel_id(handle, &ctx).await?;
 
         let ids = self.get_live_ids(&channel_id, LiveStatus::Live).await?;
@@ -46,6 +46,7 @@ impl YouTube {
         }
         Ok(())
     }
+
     pub fn handle_live(
         &self,
         _channel_handle: &str,

@@ -50,7 +50,7 @@ async fn main() -> anyhow::Result<()> {
             }
         }
         Target::YoutubeChannelHandle(handle) => {
-            youtube.check_youtube_live(&handle, &ctx).await?;
+            youtube.handle_channel(&handle, &ctx).await?;
         }
         Target::MaubeAlias(alias) => {
             let aliases_string =
@@ -69,7 +69,7 @@ async fn main() -> anyhow::Result<()> {
                             .last()
                             .unwrap_or("")
                             .trim_start_matches('@');
-                        youtube.check_youtube_live(&handle, &ctx).await?;
+                        youtube.handle_channel(&handle, &ctx).await?;
                     }
                 }
                 if let Some(twitch_link) = &links.twitch {
