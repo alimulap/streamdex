@@ -9,6 +9,9 @@ pub struct Config {
     pub client_secret: PathBuf,
     pub presist_token: PathBuf,
     pub saved_yt_channel_ids: PathBuf,
+    pub twitch_client_id: String,
+    pub twitch_client_secret: PathBuf,
+    pub twitch_access_token: PathBuf,
     pub default_parameters: DefaultParameters,
 
 }

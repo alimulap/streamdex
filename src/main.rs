@@ -4,6 +4,7 @@ use crate::config::Config;
 use crate::context::Context;
 use crate::runner::watch_with_ytdlp_and_vlc;
 use crate::target::{Aliases, PlatformFlags, Target};
+use crate::twitch::{Twitch, get_twitch_username};
 use crate::utils::extract_youtube_id_from_url;
 use crate::youtube::YouTube;
 
@@ -14,6 +15,7 @@ mod error;
 mod handler;
 mod runner;
 mod target;
+mod twitch;
 mod utils;
 mod youtube;
 
@@ -24,6 +26,8 @@ async fn main() -> anyhow::Result<()> {
     let cli = cli::parse();
     let config = Config::get();
     let youtube = YouTube::new_youtube_client(&config).await?;
+
+    let twitch = Twitch::new(&config).await?;
 
     let ctx = Context::new(config, &cli)?;
 
@@ -70,8 +74,9 @@ async fn main() -> anyhow::Result<()> {
                 }
                 if let Some(twitch_link) = &links.twitch {
                     if platform_flags.is_all() || platform_flags.twitch {
-                        println!("Twitch link: {}", twitch_link);
-                        // Twitch handling code would go here
+                        if let Some(username) = get_twitch_username(&twitch_link) {
+                            twitch.handle_streamer(username,  &ctx).await?;
+                        }
                     }
                 }
             } else {

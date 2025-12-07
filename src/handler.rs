@@ -2,10 +2,12 @@ use std::time::Duration;
 
 use chrono::Utc;
 use google_youtube3::api::Video;
+use twitch_api::helix::streams::StreamType;
 
 use crate::context::Context;
 use crate::error::{Error, FetchData};
 use crate::runner::watch_with_ytdlp_and_vlc;
+use crate::twitch::Twitch;
 use crate::youtube::{LiveStatus, YouTube};
 
 impl YouTube {
@@ -132,6 +134,46 @@ impl YouTube {
             }
         }
 
+        Ok(())
+    }
+}
+
+impl<'a> Twitch<'a> {
+    pub async fn handle_live(&self, username: &str, ctx: &Context) -> anyhow::Result<()> {
+        let url = format!("https://www.twitch.tv/{username}");
+
+        println!("Watching {url}...");
+
+        let format = ctx
+            .format
+            .clone()
+            .unwrap_or(ctx.config.default_parameters.format.youtube.clone());
+        let print_format = ctx.print_command;
+
+        watch_with_ytdlp_and_vlc(url, format, None, print_format)?;
+        Ok(())
+    }
+
+    pub async fn handle_wait_stream(&self, username: &str, ctx: &Context) -> anyhow::Result<()> {
+        println!("Will wait until {username} start a live stream");
+
+        let interval = ctx
+            .interval
+            .unwrap_or(ctx.config.default_parameters.interval);
+
+        'outer: loop {
+            println!("Waiting {interval} minutes until fetching new data...");
+            tokio::time::sleep(Duration::from_mins(interval)).await;
+
+            let streams = self.get_streams(username).await?;
+
+            for stream in streams {
+                if stream.type_ == StreamType::Live {
+                    self.handle_live(username, ctx).await?;
+                    break 'outer;
+                }
+            }
+        }
         Ok(())
     }
 }
