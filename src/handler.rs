@@ -139,6 +139,24 @@ impl YouTube {
 }
 
 impl<'a> Twitch<'a> {
+    pub async fn handle_streamer(&self, username: &str, ctx: &Context) -> anyhow::Result<()> {
+        let streams = self.get_streams(username).await?;
+
+        if !streams.is_empty() {
+            for stream in &streams {
+                if stream.type_ == StreamType::Live {
+                    self.handle_live(username, ctx).await?;
+                    break;
+                }
+            }
+        } else {
+            println!("Twtich account {username} is not currently live.");
+            self.handle_wait_stream(username, ctx).await?;
+        }
+
+        Ok(())
+    }
+
     pub async fn handle_live(&self, username: &str, ctx: &Context) -> anyhow::Result<()> {
         let url = format!("https://www.twitch.tv/{username}");
 

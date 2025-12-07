@@ -2,12 +2,12 @@ use std::fs;
 
 use twitch_api::{
     TwitchClient,
-    helix::streams::{GetStreamsRequest, Stream, StreamType},
+    helix::streams::{GetStreamsRequest, Stream},
     twitch_oauth2::{AccessToken, AppAccessToken, ClientSecret},
     types::{Collection, UserName},
 };
 
-use crate::{config::Config, context::Context};
+use crate::config::Config;
 
 pub struct Twitch<'a> {
     pub client: TwitchClient<'a, reqwest::Client>,
@@ -32,24 +32,6 @@ impl<'a> Twitch<'a> {
         .inspect_err(|e| eprintln!("The frigg {e}"))?;
 
         Ok(Self { client, token })
-    }
-
-    pub async fn handle_streamer(&self, username: &str, ctx: &Context) -> anyhow::Result<()> {
-        let streams = self.get_streams(username).await?;
-
-        if !streams.is_empty() {
-            for stream in &streams {
-                if stream.type_ == StreamType::Live {
-                    self.handle_live(username, ctx).await?;
-                    break;
-                }
-            }
-        } else {
-            println!("Twtich account {username} is not currently live.");
-            self.handle_wait_stream(username, ctx).await?;
-        }
-        
-        Ok(())
     }
 
     pub async fn get_streams(&self, username: &str) -> anyhow::Result<Vec<Stream>> {
