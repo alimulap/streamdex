@@ -19,7 +19,6 @@ pub fn parse() -> ArgMatches {
                 .help("Wait for the live stream to go live if it's not currently live"),
             Arg::new("interval")
                 .index(2)
-                .required_if_eq("wait-for-live", "true")
                 .required(false)
                 .help("Interval in seconds to check for new updates"),
             Arg::new("threshold")

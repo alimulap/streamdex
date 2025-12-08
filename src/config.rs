@@ -19,6 +19,7 @@ pub struct Config {
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct DefaultParameters {
     pub format: Formats,
+    pub wait_for_live: bool,
     pub interval: u64,
     pub threshold: i64,
 }

@@ -23,13 +23,10 @@ impl YouTube {
             if let Some(video) = live_stream {
                 self.handle_live(handle, video, ctx)?;
             }
-        } else {
+        } else if ctx.wait_for_live {
             let ids = self.get_live_ids(&channel_id, LiveStatus::Upcoming).await?;
             if ids.is_empty() {
-                println!(
-                    "Channel {} is not live and has no upcoming streams.",
-                    handle
-                );
+                println!("Channel {handle} is not live and has no upcoming streams.");
                 return Ok(());
             }
 
@@ -43,6 +40,8 @@ impl YouTube {
 
             let upcoming_videos = self.get_ones_that_actually_upcoming(&videos)?;
             self.handle_upcoming(handle, &upcoming_videos, ctx).await?;
+        } else {
+            println!("Channel {handle} is not currently streaming");
         }
         Ok(())
     }
@@ -169,7 +168,10 @@ impl<'a> Twitch<'a> {
             }
         } else {
             println!("Twtich account {username} is not currently live.");
-            self.handle_wait_stream(username, ctx).await?;
+
+            if ctx.wait_for_live {
+                self.handle_wait_stream(username, ctx).await?;
+            }
         }
 
         Ok(())
