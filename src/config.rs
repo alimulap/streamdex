@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct Config {
+    pub tui_targets: PathBuf,
     pub aliases_path: String,
     pub new_aliases: PathBuf,
     pub client_secret: PathBuf,

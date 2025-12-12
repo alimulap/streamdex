@@ -2,6 +2,10 @@
 
 use std::fmt::Display;
 
+use url::Url;
+
+use crate::target::Platform;
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("No broadcast found in channel")]
@@ -14,13 +18,23 @@ pub enum Error {
     YTFailFetchVideoDetail(google_youtube3::Error),
     #[error("Data {0} not found in fetch result")]
     NoDataFound(FetchData),
+    #[error("Failed to extract username from {0}({1}) url")]
+    FailExtractUsername(Platform, Url),
     #[error("Anyhow Error {0}")]
     Anyhow(anyhow::Error),
+    #[error("Eyre Error {0}")]
+    Eyre(color_eyre::eyre::Error)
 }
 
 impl From<anyhow::Error> for Error {
     fn from(value: anyhow::Error) -> Self {
         Error::Anyhow(value)
+    }
+}
+
+impl From<color_eyre::eyre::Error> for Error {
+    fn from(value: color_eyre::eyre::Error) -> Self {
+        Error::Eyre(value)
     }
 }
 

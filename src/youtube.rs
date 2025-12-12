@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use google_youtube3::api::Video;
 use google_youtube3::hyper_util::client::legacy::connect::HttpConnector;
 use google_youtube3::yup_oauth2::{
@@ -40,7 +40,7 @@ impl YouTube {
         }
     }
 
-    pub async fn new_youtube_client(config: &Config) -> anyhow::Result<Self> {
+    pub async fn new_youtube_client(config: &Config) -> color_eyre::Result<Self> {
         let auth = match read_application_secret(&config.client_secret).await {
             Ok(secret) => {
                 let a = InstalledFlowAuthenticator::builder(
@@ -158,7 +158,7 @@ impl YouTube {
         Ok(video_details.items.unwrap_or_default())
     }
 
-    pub async fn get_channel_id(&self, handle: &str, ctx: &Context) -> anyhow::Result<String> {
+    pub async fn get_channel_id(&self, handle: &str, ctx: &Context) -> color_eyre::Result<String> {
         let mut saved_ids = toml::from_str::<HashMap<String, String>>(&fs::read_to_string(
             &ctx.config.saved_yt_channel_ids,
         )?)?;
@@ -233,8 +233,14 @@ impl YouTube {
         return Ok(upcoming_videos);
     }
 
-    pub fn choose_closest_to_start(&self, videos: &[Video]) -> Option<(Video, DateTime<Utc>)> {
+    pub fn choose_closest_to_start(
+        &self,
+        videos: &[Video],
+        threshold: i64,
+    ) -> Option<(Video, DateTime<Utc>)> {
         let now = Utc::now();
+        let cutoff = Duration::hours(24);
+        let threshold = Duration::minutes(threshold);
 
         let mut scheduled: Vec<(&Video, DateTime<Utc>)> = Vec::new();
         for v in videos.iter() {
@@ -251,7 +257,35 @@ impl YouTube {
             return None;
         }
 
-        let mut future: Vec<(&Video, DateTime<Utc>)> = scheduled
+        let (recent, very_old): (Vec<(&Video, DateTime<Utc>)>, Vec<(&Video, DateTime<Utc>)>) =
+            scheduled
+                .into_iter()
+                .partition(|(_, dt)| *dt >= now - cutoff);
+
+        if !very_old.is_empty() {
+            if let Some((_, dt)) = very_old.iter().max_by_key(|(_, dt)| *dt) {
+                let hours = (now.signed_duration_since(*dt)).num_hours();
+                println!(
+                    "There's a scheduled stream, but it's way past {} hours and probably not worth waiting",
+                    hours
+                );
+            }
+        }
+
+        if recent.is_empty() {
+            return None;
+        }
+
+        let on_threshold = recent
+            .iter()
+            .filter(|(_, dt)| *dt >= now - threshold)
+            .collect::<Vec<&(&Video, DateTime<Utc>)>>();
+
+        if let Some((vid, dt)) = on_threshold.iter().max_by_key(|(_, dt)| *dt) {
+            return Some(((*vid).clone(), *dt));
+        }
+
+        let mut future: Vec<(&Video, DateTime<Utc>)> = recent
             .iter()
             .cloned()
             .filter(|(_, dt)| *dt >= now)
@@ -261,23 +295,54 @@ impl YouTube {
             future.sort_by_key(|(_, dt)| *dt);
             let soonest = &future[0];
 
-            let maybe_past = scheduled
+            let maybe_past = recent
                 .iter()
                 .cloned()
                 .filter(|(_, dt)| *dt < now)
                 .max_by_key(|(_, dt)| *dt);
 
             if let Some((_, dt)) = maybe_past {
-                println!("Choosing closest upcoming video at {:?}", future[0].1);
+                println!("Choosing closest upcoming video at {:?}", soonest.1);
                 println!("But there is also a past video at {:?}", dt);
             }
 
             return Some(((*soonest.0).clone(), soonest.1));
         }
 
-        scheduled.sort_by_key(|(_, dt)| *dt);
-        scheduled
-            .last()
-            .map(|(dt, v)| ((*dt).clone(), (*v).clone()))
+        if let Some((v, dt)) = recent.into_iter().max_by_key(|(_, dt)| *dt) {
+            return Some(((*v).clone(), dt));
+        }
+
+        None
     }
+}
+
+#[rustfmt::skip]
+fn _get_youtube_channel_id(url: &str) -> Option<&str> {
+    url.trim_end_matches('/')
+        .strip_prefix("https://www.youtube.com/channel/")
+        .or_else(|| url.trim_end_matches('/').strip_prefix("http://www.youtube.com/channel/"))
+        .or_else(|| url.trim_end_matches('/').strip_prefix("https://youtube.com/channel/"))
+        .or_else(|| url.trim_end_matches('/').strip_prefix("http://youtube.com/channel/"))
+        .and_then(|s| {
+            // Extract only the channel ID (before any path or query params)
+            s.split('/').next()
+                .and_then(|id| id.split('?').next())
+                .filter(|id| !id.is_empty())
+        })
+}
+
+#[rustfmt::skip]
+pub fn get_youtube_channel_handle(url: &str) -> Option<&str> {
+    url.trim_end_matches('/')
+        .strip_prefix("https://www.youtube.com/@")
+        .or_else(|| url.trim_end_matches('/').strip_prefix("http://www.youtube.com/@"))
+        .or_else(|| url.trim_end_matches('/').strip_prefix("https://youtube.com/@"))
+        .or_else(|| url.trim_end_matches('/').strip_prefix("http://youtube.com/@"))
+        .and_then(|s| {
+            // Extract only the handle (before any path or query params)
+            s.split('/').next()
+                .and_then(|handle| handle.split('?').next())
+                .filter(|h| !h.is_empty())
+        })
 }

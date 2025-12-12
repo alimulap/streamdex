@@ -15,7 +15,7 @@ pub struct Twitch<'a> {
 }
 
 impl<'a> Twitch<'a> {
-    pub async fn new(config: &Config) -> anyhow::Result<Self> {
+    pub async fn new(config: &Config) -> color_eyre::Result<Self> {
         let twitch_client_secret = fs::read_to_string(&config.twitch_client_secret)?;
         let twitch_access_token = fs::read_to_string(&config.twitch_access_token)?
             .trim()
@@ -34,7 +34,7 @@ impl<'a> Twitch<'a> {
         Ok(Self { client, token })
     }
 
-    pub async fn get_streams(&self, username: &str) -> anyhow::Result<Vec<Stream>> {
+    pub async fn get_streams(&self, username: &str) -> color_eyre::Result<Vec<Stream>> {
         let usernames = Collection::from(vec![UserName::new(username.to_string())]);
 
         let req = GetStreamsRequest::user_logins(usernames);

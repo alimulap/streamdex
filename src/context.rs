@@ -2,12 +2,12 @@ use clap::ArgMatches;
 
 use crate::{
     config::Config,
-    target::{Target, ToTarget},
+    target::{CliTarget, ToCliTarget},
 };
 
 pub struct Context {
     pub config: Config,
-    pub target: Target,
+    pub target: Option<CliTarget>,
     pub format: Option<String>,
     pub interval: Option<u64>,
     pub wait_for_live: bool,
@@ -18,12 +18,11 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new(config: Config, cli: &ArgMatches) -> anyhow::Result<Self> {
+    pub fn new(config: Config, cli: &ArgMatches) -> color_eyre::Result<Self> {
         let target = cli
             .get_one::<String>("target")
             .cloned()
-            .expect("required by clap")
-            .to_target();
+            .map(|mut string| string.to_target());
         let format = cli.get_one::<String>("format").cloned();
         let interval = cli
             .get_one::<String>("interval")

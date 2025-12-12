@@ -11,7 +11,7 @@ use crate::twitch::Twitch;
 use crate::youtube::{LiveStatus, YouTube};
 
 impl YouTube {
-    pub async fn handle_channel(&self, handle: &str, ctx: &Context) -> anyhow::Result<()> {
+    pub async fn handle_channel(&self, handle: &str, ctx: &Context) -> color_eyre::Result<()> {
         let channel_id = self.get_channel_id(handle, &ctx).await?;
 
         let ids = self.get_live_ids(&channel_id, LiveStatus::Live).await?;
@@ -51,7 +51,7 @@ impl YouTube {
         _channel_handle: &str,
         video: Video,
         ctx: &Context,
-    ) -> anyhow::Result<()> {
+    ) -> color_eyre::Result<()> {
         let video_id = video.id.ok_or(Error::NoDataFound(FetchData::VideoID))?;
         let format = ctx
             .format
@@ -75,11 +75,11 @@ impl YouTube {
         videos: &[Video],
         ctx: &Context,
     ) -> Result<(), Error> {
-        let closest = self.choose_closest_to_start(&videos);
-
         let threshold = ctx
             .threshold
             .unwrap_or(ctx.config.default_parameters.threshold);
+
+        let closest = self.choose_closest_to_start(&videos, threshold);
 
         if let Some((video, start_time)) = closest {
             let video_id = video
@@ -132,7 +132,7 @@ impl YouTube {
                     let videos = self.get_videos_details(upcoming_ids).await?;
                     let actually_upcoming = self.get_ones_that_actually_upcoming(&videos)?;
                     if let Some((video, start_time)) =
-                        self.choose_closest_to_start(&actually_upcoming)
+                        self.choose_closest_to_start(&actually_upcoming, threshold)
                     {
                         let minutes_left =
                             start_time.signed_duration_since(Utc::now()).num_minutes();
@@ -156,7 +156,7 @@ impl YouTube {
 }
 
 impl<'a> Twitch<'a> {
-    pub async fn handle_streamer(&self, username: &str, ctx: &Context) -> anyhow::Result<()> {
+    pub async fn handle_streamer(&self, username: &str, ctx: &Context) -> color_eyre::Result<()> {
         let streams = self.get_streams(username).await?;
 
         if !streams.is_empty() {
@@ -177,7 +177,7 @@ impl<'a> Twitch<'a> {
         Ok(())
     }
 
-    pub async fn handle_live(&self, username: &str, ctx: &Context) -> anyhow::Result<()> {
+    pub async fn handle_live(&self, username: &str, ctx: &Context) -> color_eyre::Result<()> {
         let url = format!("https://www.twitch.tv/{username}");
 
         println!("Watching {url}...");
@@ -185,14 +185,18 @@ impl<'a> Twitch<'a> {
         let format = ctx
             .format
             .clone()
-            .unwrap_or(ctx.config.default_parameters.format.youtube.clone());
+            .unwrap_or(ctx.config.default_parameters.format.twitch.clone());
         let print_format = ctx.print_command;
 
         watch_with_ytdlp_and_vlc(url, format, None, print_format)?;
         Ok(())
     }
 
-    pub async fn handle_wait_stream(&self, username: &str, ctx: &Context) -> anyhow::Result<()> {
+    pub async fn handle_wait_stream(
+        &self,
+        username: &str,
+        ctx: &Context,
+    ) -> color_eyre::Result<()> {
         println!("Will wait until {username} start a live stream");
 
         let interval = ctx

@@ -5,7 +5,8 @@ pub fn parse() -> ArgMatches {
         .args(&[
             Arg::new("target")
                 .index(1)
-                .required(true)
+                .required(false)
+                .required_unless_present("tui")
                 .help("URL or alias of the live stream or video"),
             Arg::new("format")
                 .short('f')
@@ -38,6 +39,7 @@ pub fn parse() -> ArgMatches {
                 .long("print-format")
                 .action(ArgAction::SetTrue)
                 .help("Print yt-dlp and vlc command to stdout"),
+            Arg::new("tui").action(ArgAction::SetTrue).long("tui"),
         ])
         .get_matches()
     // .subcommand_required(true)

@@ -8,7 +8,7 @@ pub fn watch_with_ytdlp_and_vlc(
     res: String,
     range: Option<String>,
     print_command: bool,
-) -> anyhow::Result<()> {
+) -> color_eyre::Result<()> {
     if !print_command {
         println!("Running with yt-dlp + vlc");
     }
@@ -53,13 +53,13 @@ pub fn watch_with_ytdlp_and_vlc(
                 .get_args()
                 .map(|arg| arg.to_str())
                 .collect::<Option<Vec<&str>>>()
-                .ok_or_else(|| anyhow::anyhow!("Failed to convert yt-dlp args to string"))?
+                .ok_or_else(|| color_eyre::eyre::eyre!("Failed to convert yt-dlp args to string"))?
                 .join(" ")
                 .to_owned(),
             vlc.get_args()
                 .map(|arg| arg.to_str())
                 .collect::<Option<Vec<&str>>>()
-                .ok_or_else(|| anyhow::anyhow!("Failed to convert vlc args to string"))?
+                .ok_or_else(|| color_eyre::eyre::eyre!("Failed to convert vlc args to string"))?
                 .join(" ")
                 .to_owned(),
         );
@@ -68,7 +68,7 @@ pub fn watch_with_ytdlp_and_vlc(
         let mut ytdlp = ytdlp.spawn()?;
         let mut vlc = vlc
             .stdin(Stdio::from(ytdlp.stdout.take().ok_or_else(|| {
-                anyhow::anyhow!("Failed to take yt-dlp stdout")
+                color_eyre::eyre::eyre!("Failed to take yt-dlp stdout")
             })?))
             .spawn()?;
 
